@@ -1,0 +1,7 @@
+services:
+  bot:
+    build: .
+    container_name: bot_first_container
+    env_file:
+      - .env
+    restart: always

@@ -2,12 +2,9 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
-from config import LIST_OF_COMMANDS, PORTFOLIO_TEXT
+from config import LIST_OF_COMMANDS, PORTFOLIO_TEXT, admin_ids
 from states import UserState
-from keyboards import (
-    MAIN_MENU_KEYBOARD, MAIN_MENU_KEYBOARD1, BACK_TO_MENU_KEYBOARD, 
-    get_pagination_keyboard
-)
+from keyboards import get_main_reply_keyboard, MAIN_MENU_KEYBOARD, BACK_TO_MENU_KEYBOARD
 import database as db
 
 user_router = Router()
@@ -20,11 +17,15 @@ async def start_command(message: types.Message, state: FSMContext) -> None:
         full_name=message.from_user.full_name,
         username=message.from_user.username
     )
+
+    # Генерируем клавиатуру персонально для этого юзера:
+    dynamic_reply_kb = get_main_reply_keyboard(message.from_user.id, admin_ids)
+
     await message.answer(
         f'Добрый день, {message.from_user.full_name}\n'
-        f'Рад вас видеть, выберите Меню, чтобы узнать мои команды',
-        reply_markup=MAIN_MENU_KEYBOARD1
-    )
+        f'Рад вас видеть, выберите Меню, чтобы узнать мои команды'
+        ,reply_markup=dynamic_reply_kb
+    ) 
     await message.answer('Привет! это мой бот-визитка', reply_markup=MAIN_MENU_KEYBOARD)
 
 @user_router.callback_query(F.data == "menu")

@@ -13,6 +13,12 @@ import database as db
 # Создаем роутер для админских команд
 admin_router = Router()
 
+
+@admin_router.message(F.text == 'Админ меню', IsAdmin())
+async def admin_reply_button_handler(message: types.Message, state: FSMContext) -> None:
+    await state.set_state(state=None)
+    await message.answer('Добро пожаловать в Админ-панель!', reply_markup=ADMIN_MENU_KEYBOARD)
+
 @admin_router.message(Command('admin'), IsAdmin())
 async def admin_command(message: types.Message, state: FSMContext) -> None:
     await state.set_state(state=None)
@@ -22,8 +28,10 @@ async def admin_command(message: types.Message, state: FSMContext) -> None:
 async def admin_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
     await state.set_state(state=None)
-    await callback.message.edit_text('Добро пожаловать в Админ-панель!', reply_markup=ADMIN_MENU_KEYBOARD)
-
+    with suppress(TelegramAPIError):
+        await callback.message.edit_text('Добро пожаловать в Админ-панель!', reply_markup=ADMIN_MENU_KEYBOARD)
+        return
+    await callback.message.answer('Добро пожаловать в Админ-панель!', reply_markup=ADMIN_MENU_KEYBOARD)
 @admin_router.callback_query(F.data == 'admin_statistic', IsAdmin())
 async def admin_statistic(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()

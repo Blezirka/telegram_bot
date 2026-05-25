@@ -1,7 +1,7 @@
 from aiogram import types
 
-MAIN_MENU_BUTTONS1 = [[types.KeyboardButton(text='Меню')]]
-MAIN_MENU_KEYBOARD1 = types.ReplyKeyboardMarkup(keyboard=MAIN_MENU_BUTTONS1, resize_keyboard=True)
+# MAIN_MENU_SCREEN_BUTTONS = [[types.KeyboardButton(text='Меню')]]
+# MAIN_MENU_SCREEN_KEYBOARD = types.ReplyKeyboardMarkup(keyboard=MAIN_MENU_SCREEN_BUTTONS, resize_keyboard=True)
 
 MAIN_MENU_BUTTONS = [
     [types.InlineKeyboardButton(text="Обо мне", callback_data='about_me')],
@@ -26,6 +26,19 @@ ADMIN_MENU_BUTTONS = [
     ]
 ]
 ADMIN_MENU_KEYBOARD = types.InlineKeyboardMarkup(inline_keyboard=ADMIN_MENU_BUTTONS)
+
+
+def get_main_reply_keyboard(user_id: int, admin_list: list) -> types.ReplyKeyboardMarkup:
+    # Базовая кнопка, которая есть у всех
+    buttons = [types.KeyboardButton(text='Меню')]
+    
+    # Если зашел админ, добавляем ему вторую кнопку в тот же ряд
+    if user_id in admin_list:
+        buttons.append(types.KeyboardButton(text='Админ меню'))
+        
+    # Собираем клавиатуру (обрати внимание на структуру списка [[...]])
+    return types.ReplyKeyboardMarkup(keyboard=[buttons], resize_keyboard=True)
+
 
 def get_pagination_keyboard(page: int, total_pages: int, prefix: str) -> types.InlineKeyboardMarkup:
     buttons = []

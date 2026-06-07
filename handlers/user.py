@@ -1,13 +1,24 @@
+import html
+import aiohttp  # Добавили асинхронную библиотеку для запросов
+
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
 from config import LIST_OF_COMMANDS, PORTFOLIO_TEXT, admin_ids
 from states import UserState
-from keyboards import get_main_reply_keyboard, MAIN_MENU_KEYBOARD, BACK_TO_MENU_KEYBOARD
+# Добавили импорт get_pagination_keyboard чтобы не падала история
+from keyboards import get_main_reply_keyboard, MAIN_MENU_KEYBOARD, BACK_TO_MENU_KEYBOARD, get_pagination_keyboard
 import database as db
+from contextlib import suppress
+from aiogram.exceptions import TelegramAPIError
 
 user_router = Router()
+
+# Переменные для интеграции котиков
+API_CATS_URL = 'https://api.thecatapi.com/v1/images/search'
+ERROR_TEXT = 'Здесь должна была быть картинка с котиком :('
+
 
 @user_router.message(Command('start'))
 async def start_command(message: types.Message, state: FSMContext) -> None:
@@ -18,21 +29,31 @@ async def start_command(message: types.Message, state: FSMContext) -> None:
         username=message.from_user.username
     )
 
-    # Генерируем клавиатуру персонально для этого юзера:
+    # Генерируем клавиатуру персонально для этого юзера
     dynamic_reply_kb = get_main_reply_keyboard(message.from_user.id, admin_ids)
 
     await message.answer(
         f'Добрый день, {message.from_user.full_name}\n'
-        f'Рад вас видеть, выберите Меню, чтобы узнать мои команды'
-        ,reply_markup=dynamic_reply_kb
-    ) 
+        f'Рад вас видеть, выберите Меню, чтобы узнать мои команды',
+        reply_markup=dynamic_reply_kb
+    )
     await message.answer('Привет! это мой бот-визитка', reply_markup=MAIN_MENU_KEYBOARD)
+
 
 @user_router.callback_query(F.data == "menu")
 async def menu_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
     await state.set_state(state=None)
-    await callback.message.edit_text('Привет! это мой бот-визитка', reply_markup=MAIN_MENU_KEYBOARD)
+
+    if callback.message.photo:
+
+        with suppress(TelegramAPIError):
+            await callback.message.delete()
+
+        await callback.message.answer('Привет! это мой бот-визитка', reply_markup=MAIN_MENU_KEYBOARD)
+    else:
+        await callback.message.edit_text('Привет! это мой бот-визитка', reply_markup=MAIN_MENU_KEYBOARD)
+
 
 @user_router.callback_query(F.data == "about_me")
 async def about_me_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
@@ -44,21 +65,25 @@ async def about_me_callback(callback: types.CallbackQuery, state: FSMContext) ->
         reply_markup=BACK_TO_MENU_KEYBOARD
     )
 
+
 @user_router.callback_query(F.data == "name")
 async def name_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     user = callback.from_user
     await callback.answer()
     await state.set_state(state=None)
     await callback.message.edit_text(
-        f"Твоё имя: {user.full_name} (можно обращаться {user.first_name})",
+        f"Твоё имя: <b>{html.escape(user.full_name)}</b> (можно обращаться <b>{html.escape(user.full_name)}</b>)",
+        parse_mode="HTML",
         reply_markup=BACK_TO_MENU_KEYBOARD
     )
+
 
 @user_router.callback_query(F.data == "portfolio")
 async def portfolio_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
     await state.set_state(state=None)
     await callback.message.edit_text(PORTFOLIO_TEXT, reply_markup=BACK_TO_MENU_KEYBOARD)
+
 
 @user_router.callback_query(F.data == "about_you")
 async def about_you_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
@@ -73,8 +98,9 @@ async def about_you_callback(callback: types.CallbackQuery, state: FSMContext) -
         total = len(pages)
         text = f"👤 **Твоя история (Страница {page + 1} из {total})**:\n\n{pages[page]}\n\n*— Пиши сюда, чтобы добавить страницу!*"
         await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=get_pagination_keyboard(page, total, "user_page"))
-        
+
     await state.set_state(UserState.waiting_for_about_you)
+
 
 @user_router.callback_query(F.data.startswith("user_page:"))
 async def process_user_story_page(callback: types.CallbackQuery, state: FSMContext) -> None:
@@ -88,19 +114,21 @@ async def process_user_story_page(callback: types.CallbackQuery, state: FSMConte
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=get_pagination_keyboard(page, total, "user_page"))
     await state.set_state(UserState.waiting_for_about_you)
 
+
 @user_router.message(UserState.waiting_for_about_you, ~F.text.in_(LIST_OF_COMMANDS))
 async def about_you_step_2(message: types.Message, state: FSMContext):
     current_story = await db.get_user_story(message.from_user.id)
     updated_story = f"{current_story}\n{message.text}" if current_story else message.text
-        
+
     await db.update_user_story(message.from_user.id, updated_story)
-    
+
     pages = [p.strip() for p in updated_story.split('\n') if p.strip()]
     total = len(pages)
     page = total - 1
-    
+
     text = f"✅ **Запомнил новую страницу! ({page + 1} из {total})**:\n\n{pages[page]}"
     await message.answer(text, parse_mode="Markdown", reply_markup=get_pagination_keyboard(page, total, "user_page"))
+
 
 @user_router.message(F.text == 'Меню')
 async def menu_handler(message: types.Message, state: FSMContext) -> None:
@@ -112,10 +140,40 @@ async def menu_handler(message: types.Message, state: FSMContext) -> None:
     )
     await message.answer('Привет! это мой бот-визитка', reply_markup=MAIN_MENU_KEYBOARD)
 
+
 @user_router.message(F.text == 'Привет')
 async def hello_handler(message: types.Message) -> None:
     await message.answer('Привет! Как у тебя дела?')
 
+
 @user_router.message(F.text == 'Морс')
 async def morse_handler(message: types.Message) -> None:
     await message.answer('Ты не представляешь какой вкусный морс я сегодня пил. Мне кажется, он вызывает зависимость')
+
+
+# ХЭНДЛЕР ОТРЕЗОНСА КОТИКА ИЗ СТАРOГО СКРИПТА
+@user_router.callback_query(F.data == "send_cat")
+async def send_cat_callback(callback: types.CallbackQuery) -> None:
+    await callback.answer()
+
+    status_message = await callback.message.answer("Ищу котика...")
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(API_CATS_URL) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    cat_link = data[0]['url']
+
+                    await callback.message.answer_photo(
+                        photo=cat_link,
+                        caption="Вот твой котик!",
+                        reply_markup=BACK_TO_MENU_KEYBOARD
+                    )
+                else:
+                    await callback.message.answer(ERROR_TEXT, reply_markup=BACK_TO_MENU_KEYBOARD)
+        except Exception as e:
+            print(f"Ошибка при получении котика: {e}")
+            await callback.message.answer(ERROR_TEXT, reply_markup=BACK_TO_MENU_KEYBOARD)
+
+    await status_message.delete()

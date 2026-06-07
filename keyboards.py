@@ -9,7 +9,8 @@ MAIN_MENU_BUTTONS = [
         types.InlineKeyboardButton(text="Имя", callback_data='name'),
         types.InlineKeyboardButton(text="Портфолио", callback_data='portfolio')
     ],
-    [types.InlineKeyboardButton(text="О тебе", callback_data='about_you')]
+    [types.InlineKeyboardButton(text="О тебе", callback_data='about_you')],
+    [types.InlineKeyboardButton(text="Хочу котика", callback_data='send_cat')]
 ]
 MAIN_MENU_KEYBOARD = types.InlineKeyboardMarkup(inline_keyboard=MAIN_MENU_BUTTONS)
 
@@ -30,12 +31,13 @@ ADMIN_MENU_KEYBOARD = types.InlineKeyboardMarkup(inline_keyboard=ADMIN_MENU_BUTT
 
 def get_main_reply_keyboard(user_id: int, admin_list: list) -> types.ReplyKeyboardMarkup:
     # Базовая кнопка, которая есть у всех
+
     buttons = [types.KeyboardButton(text='Меню')]
-    
+
     # Если зашел админ, добавляем ему вторую кнопку в тот же ряд
     if user_id in admin_list:
         buttons.append(types.KeyboardButton(text='Админ меню'))
-        
+
     # Собираем клавиатуру (обрати внимание на структуру списка [[...]])
     return types.ReplyKeyboardMarkup(keyboard=[buttons], resize_keyboard=True)
 
@@ -52,7 +54,7 @@ def get_pagination_keyboard(page: int, total_pages: int, prefix: str) -> types.I
         back_cb = "menu"
         back_text = "Вернуться в меню"
     elif prefix == "news_page":
-        back_cb = "admin"       
+        back_cb = "admin"
         back_text = "Вернуться"
     else:
         back_cb = "close_archive"

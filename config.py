@@ -8,7 +8,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 admin_ids = [int(x.strip()) for x in os.getenv('ADMIN_IDS', '').split(',') if x.strip()]
 
-LIST_OF_COMMANDS = ['Меню', '/admin', '/start', '/get_data']
+LIST_OF_COMMANDS = ['Меню', 'Админ меню', '/admin', '/start', '/get_data']
 
 class IsAdmin(BaseFilter):
     async def __call__(self, obj: TelegramObject) -> bool:
